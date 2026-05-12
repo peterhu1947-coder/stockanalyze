@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}宏观分析 – StockAnalyze{% endblock %}
+
+{% block content %}
+<div class="hero-banner rounded-3 p-4 mb-4">
+  <h1 class="fw-bold mb-1">🌍 宏观经济分析</h1>
+  <p class="text-muted mb-0">
+    跟踪核心宏观指标：利率、美元、黄金、原油、VIX恐慌指数，洞察全球资金流向
+  </p>
+</div>
+
+<!-- Key Macro Concepts -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="info-card card h-100">
+      <div class="card-body">
+        <h6 class="card-title text-accent"><i class="bi bi-bank me-2"></i>货币政策</h6>
+        <p class="card-text small text-muted">
+          美联储通过调整联邦基金利率控制通胀和就业。
+          <strong>加息</strong>→股市承压；<strong>降息</strong>→流动性宽松，市场上涨。
+          关注每次FOMC会议决议和鲍威尔讲话。
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="info-card card h-100">
+      <div class="card-body">
+        <h6 class="card-title text-accent"><i class="bi bi-graph-up me-2"></i>通胀与CPI</h6>
+        <p class="card-text small text-muted">
+          CPI（消费者价格指数）衡量通胀水平。高通胀→美联储加息压力→
+          债券收益率上升→成长股估值下降。目标通胀率为2%。
+          PCE是美联储更倾向使用的通胀指标。
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="info-card card h-100">
+      <div class="card-body">
+        <h6 class="card-title text-accent"><i class="bi bi-people me-2"></i>就业数据</h6>
+        <p class="card-text small text-muted">
+          非农就业（NFP）每月第一个周五发布。强劲就业→经济健康→
+          可能加息。失业率上升→经济担忧→可能降息。
+          JOLTS职位空缺数也是重要领先指标。
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Macro Indicator Charts -->
+<h5 class="section-header mt-4 mb-3">
+  <span class="section-dot"></span>核心宏观指标走势
+</h5>
+
+<div class="row g-4" id="macroCharts">
+  {% for ind in indicators %}
+  <div class="col-md-6">
+    <div class="card chart-card">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0 fw-bold">{{ ind.name }}</h6>
+            <small class="text-muted">{{ ind.ticker }}</small>
+          </div>
+          <div class="d-flex gap-2">
+            {% for p in ['6mo', '1y', '2y', '5y'] %}
+            <button class="btn btn-xs period-btn {% if p == '2y' %}active{% endif %}"
+                    data-ticker="{{ ind.ticker }}" data-period="{{ p }}">{{ p }}</button>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="small text-muted mb-2">{{ ind.desc }}</p>
+        <div id="chart-{{ ind.ticker | replace('^','') | replace('=','') | replace('.','') | replace('-','') }}"
+             class="macro-chart-container">
+          <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+            <div class="spinner-border spinner-border-sm me-2"></div>加载中…
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Correlation Heatmap Info -->
+<div class="card mt-4 p-4 info-card">
+  <h6 class="text-accent mb-3"><i class="bi bi-diagram-3 me-2"></i>资产相关性参考</h6>
+  <div class="row text-center g-3">
+    <div class="col-6 col-md-3">
+      <div class="corr-box negative">
+        <div class="fw-bold">黄金 ↔ 美元</div>
+        <div class="text-muted small">负相关 — 美元强→黄金跌</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="corr-box positive">
+        <div class="fw-bold">美债收益率 ↔ 成长股</div>
+        <div class="text-muted small">负相关 — 利率升→科技股跌</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="corr-box positive">
+        <div class="fw-bold">原油 ↔ 通胀</div>
+        <div class="text-muted small">正相关 — 油价升→通胀压力升</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="corr-box negative">
+        <div class="fw-bold">VIX ↔ 股市</div>
+        <div class="text-muted small">负相关 — 恐慌升→股市跌</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const INDICATORS = {{ indicators | tojson }};
+
+  function safeId(ticker) {
+    return ticker.replace(/[\^=.\-]/g, '');
+  }
+
+  async function loadMacroChart(ticker, period) {
+    const id = safeId(ticker);
+    const el = document.getElementById(`chart-${id}`);
+    if (!el) return;
+    el.innerHTML = '<div class="d-flex align-items-center justify-content-center h-100 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>加载中…</div>';
+
+    try {
+      const res = await fetch(`/api/macro-chart/${encodeURIComponent(ticker)}?period=${period}`);
+      if (!res.ok) throw new Error('API error');
+      const fig = await res.json();
+      el.innerHTML = '';
+      Plotly.newPlot(el, fig.data, fig.layout, {responsive: true, displayModeBar: false});
+    } catch(e) {
+      el.innerHTML = '<div class="text-center text-muted py-4"><i class="bi bi-exclamation-triangle fs-3 d-block mb-2"></i>数据暂时不可用</div>';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    INDICATORS.forEach(ind => loadMacroChart(ind.ticker, '2y'));
+
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const ticker = this.dataset.ticker;
+        const period = this.dataset.period;
+        // Update active button in the same group
+        this.closest('.d-flex.gap-2').querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        loadMacroChart(ticker, period);
+      });
+    });
+  });
+</script>
+{% endblock %}

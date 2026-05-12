@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}学习中心 – StockAnalyze{% endblock %}
+
+{% block content %}
+<div class="hero-banner rounded-3 p-4 mb-4">
+  <h1 class="fw-bold mb-1">🎓 学习中心</h1>
+  <p class="text-muted mb-0">
+    精选视频教程与深度文章，系统提升宏观分析、技术分析与投资决策能力
+  </p>
+</div>
+
+<!-- Filter Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="learnTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-filter="all">
+      <i class="bi bi-grid me-1"></i>全部内容
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-filter="video">
+      <i class="bi bi-play-circle me-1"></i>视频教程
+      <span class="badge bg-secondary ms-1">{{ videos | length }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-filter="article">
+      <i class="bi bi-file-text me-1"></i>深度文章
+      <span class="badge bg-secondary ms-1">{{ articles | length }}</span>
+    </button>
+  </li>
+</ul>
+
+<!-- Videos Section -->
+<div id="section-video">
+  <h5 class="section-header mb-3">
+    <span class="section-dot"></span>📹 视频教程
+  </h5>
+  <div class="row g-4 mb-5">
+    {% for video in videos %}
+    <div class="col-md-6 col-lg-4 learn-item" data-type="video">
+      <div class="card learn-card h-100">
+        <div class="video-thumb-wrap position-relative">
+          <img src="{{ video.thumbnail }}" alt="{{ video.title }}"
+               class="card-img-top video-thumb"
+               onerror="this.src='https://via.placeholder.com/480x270/1a1a2e/00d4aa?text=Video'" />
+          <div class="play-overlay">
+            <div class="play-btn">
+              <i class="bi bi-play-fill"></i>
+            </div>
+          </div>
+          <span class="source-badge badge bg-danger position-absolute top-0 end-0 m-2">
+            <i class="bi bi-youtube me-1"></i>{{ video.source }}
+          </span>
+        </div>
+        <div class="card-body">
+          <h6 class="card-title mb-2">{{ video.title }}</h6>
+          <p class="card-text text-muted small mb-3">{{ video.description }}</p>
+          <div class="d-flex flex-wrap gap-1 mb-3">
+            {% for tag in video.tags %}
+            <span class="badge tag-badge">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="card-footer bg-transparent border-0 pt-0">
+          <a href="{{ video.url }}" target="_blank" rel="noopener"
+             class="btn btn-accent w-100">
+            <i class="bi bi-play-circle me-2"></i>观看视频
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Articles Section -->
+<div id="section-article">
+  <h5 class="section-header mb-3">
+    <span class="section-dot"></span>📄 深度文章
+  </h5>
+  <div class="row g-4">
+    {% for article in articles %}
+    <div class="col-md-6 learn-item" data-type="article">
+      <div class="card learn-card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-3">
+            <div class="article-icon">
+              <i class="bi bi-file-earmark-text"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <h6 class="card-title mb-0">{{ article.title }}</h6>
+                <span class="badge bg-info bg-opacity-25 text-info ms-2 text-nowrap">
+                  <i class="bi bi-clock me-1"></i>{{ article.read_time }}
+                </span>
+              </div>
+              <small class="text-muted d-block mb-2">
+                <i class="bi bi-globe2 me-1"></i>{{ article.source }}
+              </small>
+              <p class="card-text text-muted small mb-3">{{ article.description }}</p>
+              <div class="d-flex flex-wrap gap-1 mb-3">
+                {% for tag in article.tags %}
+                <span class="badge tag-badge">{{ tag }}</span>
+                {% endfor %}
+              </div>
+              <a href="{{ article.url }}" target="_blank" rel="noopener"
+                 class="btn btn-sm btn-outline-accent">
+                <i class="bi bi-box-arrow-up-right me-1"></i>阅读全文
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Learning Path -->
+<div class="card mt-5 p-4 info-card">
+  <h6 class="text-accent mb-3">
+    <i class="bi bi-map me-2"></i>推荐学习路径
+  </h6>
+  <div class="row g-3">
+    {% for step, title, desc in [
+      ('1', '宏观经济基础', '理解GDP、通胀、利率、汇率的相互关系'),
+      ('2', '资产类别认知', '学习股票、债券、商品、加密货币的特性'),
+      ('3', '技术分析入门', '掌握K线图、均线、成交量等基础工具'),
+      ('4', '基本面分析', '学习财报解读、估值方法、行业分析'),
+      ('5', '投资组合构建', '资产配置、风险管理、再平衡策略'),
+      ('6', '持续学习进阶', '跟踪市场动态，建立自己的分析体系'),
+    ] %}
+    <div class="col-md-4">
+      <div class="learning-step d-flex align-items-start gap-3">
+        <div class="step-number">{{ step }}</div>
+        <div>
+          <div class="fw-semibold">{{ title }}</div>
+          <div class="text-muted small">{{ desc }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('#learnTabs .nav-link').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#learnTabs .nav-link').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      const filter = this.dataset.filter;
+
+      const videoSection = document.getElementById('section-video');
+      const articleSection = document.getElementById('section-article');
+
+      if (filter === 'all') {
+        videoSection.style.display = '';
+        articleSection.style.display = '';
+      } else if (filter === 'video') {
+        videoSection.style.display = '';
+        articleSection.style.display = 'none';
+      } else {
+        videoSection.style.display = 'none';
+        articleSection.style.display = '';
+      }
+    });
+  });
+</script>
+{% endblock %}

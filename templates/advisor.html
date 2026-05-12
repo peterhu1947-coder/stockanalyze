@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}投资顾问 – StockAnalyze{% endblock %}
+
+{% block content %}
+<div class="hero-banner rounded-3 p-4 mb-4">
+  <h1 class="fw-bold mb-1">🤖 专属投资顾问</h1>
+  <p class="text-muted mb-0">
+    根据您的风险偏好、投资期限和资金规模，生成个性化资产配置方案与投资建议
+  </p>
+</div>
+
+<div class="row g-4">
+  <!-- Left: Questionnaire -->
+  <div class="col-lg-5">
+    <div class="card p-4">
+      <h5 class="mb-4 fw-bold"><i class="bi bi-clipboard-check me-2 text-accent"></i>投资画像问卷</h5>
+
+      <!-- Risk Tolerance -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold">📊 风险承受能力</label>
+        <div class="d-flex flex-column gap-2" id="riskGroup">
+          {% for key, profile in profiles.items() %}
+          <div class="risk-option {% if key == 'moderate' %}selected{% endif %}"
+               data-risk="{{ key }}">
+            <div class="d-flex align-items-center gap-2">
+              <span class="fs-4">{{ profile.icon }}</span>
+              <div>
+                <div class="fw-semibold">{{ profile.name }}</div>
+                <div class="text-muted small">{{ profile.description }}</div>
+              </div>
+              <div class="ms-auto">
+                <span class="badge risk-badge-{{ key }}">{{ profile.risk_level }}风险</span>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Investment Horizon -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold">⏰ 投资期限</label>
+        <div class="row g-2" id="horizonGroup">
+          {% for h, label, desc in [('short','短线','&lt;1年，波段操作'), ('medium','中线','1-5年，稳健成长'), ('long','长线','&gt;5年，价值投资')] %}
+          <div class="col-4">
+            <div class="horizon-option text-center {% if h == 'medium' %}selected{% endif %}"
+                 data-horizon="{{ h }}">
+              <div class="fw-semibold">{{ label }}</div>
+              <div class="text-muted" style="font-size:0.7rem">{{ desc | safe }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Investment Amount -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold">💰 可投资金额 (USD)</label>
+        <div class="input-group">
+          <span class="input-group-text bg-dark border-secondary text-muted">$</span>
+          <input type="number" class="form-control" id="amountInput"
+                 value="10000" min="100" step="1000" />
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          {% for amt in [1000, 5000, 10000, 50000, 100000] %}
+          <button class="btn btn-xs btn-outline-secondary quick-amount" data-amount="{{ amt }}">
+            {{ '%.0f' % (amt / 1000) }}K
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Asset Interests -->
+      <div class="mb-4">
+        <label class="form-label fw-semibold">🌐 感兴趣的资产类别</label>
+        <div class="d-flex flex-wrap gap-2" id="assetInterests">
+          {% for v, label in [('us','🇺🇸 美股'), ('china','🇨🇳 中港股'), ('crypto','₿ 加密货币'), ('bonds','📜 债券'), ('gold','🥇 黄金'), ('reits','🏢 REITs')] %}
+          <div class="interest-badge {% if v in ['us','china'] %}selected{% endif %}" data-value="{{ v }}">
+            {{ label }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button class="btn btn-accent w-100 py-2" id="generateBtn">
+        <i class="bi bi-robot me-2"></i>生成我的投资方案
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Results -->
+  <div class="col-lg-7">
+    <div id="advisorResults" class="d-none">
+
+      <!-- Profile Card -->
+      <div class="card p-4 mb-4 profile-result-card">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <span class="fs-1" id="resultIcon"></span>
+          <div>
+            <h5 class="mb-0 fw-bold" id="resultProfileName"></h5>
+            <div class="text-muted small" id="resultDesc"></div>
+          </div>
+          <div class="ms-auto text-end">
+            <div class="text-muted small">预期年化收益</div>
+            <div class="fs-5 fw-bold text-accent" id="resultReturn"></div>
+          </div>
+        </div>
+
+        <!-- Allocation Chart -->
+        <div id="allocationChart" style="height:240px"></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="card p-4 mb-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2 text-accent"></i>核心投资建议</h6>
+        <ul class="list-unstyled mb-0" id="resultRecs"></ul>
+      </div>
+
+      <!-- Dynamic Insights -->
+      <div class="card p-4 mb-4" id="insightsCard">
+        <h6 class="fw-bold mb-3"><i class="bi bi-stars me-2 text-accent"></i>个性化洞察</h6>
+        <div id="resultInsights"></div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="alert alert-warning small mb-0" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        <strong>免责声明：</strong>以上建议仅供参考，不构成实际投资建议。
+        投资有风险，请结合自身情况谨慎决策，必要时咨询专业持牌投资顾问。
+      </div>
+    </div>
+
+    <!-- Placeholder before analysis -->
+    <div id="advisorPlaceholder" class="card p-5 text-center">
+      <i class="bi bi-robot fs-1 mb-3 opacity-25 d-block"></i>
+      <h6 class="text-muted">完成问卷后，您的专属投资顾问将在此展示</h6>
+      <p class="text-muted small">根据您的风险偏好和投资目标，生成个性化资产配置方案</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const PROFILES = {{ profiles | tojson }};
+  let selectedRisk = 'moderate';
+  let selectedHorizon = 'medium';
+  let selectedAssets = ['us', 'china'];
+
+  // Risk option selection
+  document.querySelectorAll('.risk-option').forEach(el => {
+    el.addEventListener('click', function() {
+      document.querySelectorAll('.risk-option').forEach(e => e.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedRisk = this.dataset.risk;
+    });
+  });
+
+  // Horizon selection
+  document.querySelectorAll('.horizon-option').forEach(el => {
+    el.addEventListener('click', function() {
+      document.querySelectorAll('.horizon-option').forEach(e => e.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedHorizon = this.dataset.horizon;
+    });
+  });
+
+  // Asset interest badges
+  document.querySelectorAll('.interest-badge').forEach(el => {
+    el.addEventListener('click', function() {
+      this.classList.toggle('selected');
+      const v = this.dataset.value;
+      if (this.classList.contains('selected')) {
+        if (!selectedAssets.includes(v)) selectedAssets.push(v);
+      } else {
+        selectedAssets = selectedAssets.filter(a => a !== v);
+      }
+    });
+  });
+
+  // Quick amount buttons
+  document.querySelectorAll('.quick-amount').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('amountInput').value = this.dataset.amount;
+    });
+  });
+
+  // Generate button
+  document.getElementById('generateBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>分析中…';
+
+    const amount = document.getElementById('amountInput').value;
+
+    try {
+      const res = await fetch('/api/advisor-analysis', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          risk: selectedRisk,
+          horizon: selectedHorizon,
+          amount: parseFloat(amount),
+          assets: selectedAssets,
+        }),
+      });
+
+      const data = await res.json();
+      displayResults(data);
+    } catch(e) {
+      alert('分析失败，请稍后重试');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-robot me-2"></i>重新生成方案';
+  });
+
+  function displayResults(data) {
+    const profile = data.profile;
+    document.getElementById('advisorPlaceholder').classList.add('d-none');
+    document.getElementById('advisorResults').classList.remove('d-none');
+
+    document.getElementById('resultIcon').textContent = profile.icon;
+    document.getElementById('resultProfileName').textContent = profile.name;
+    document.getElementById('resultDesc').textContent = profile.description;
+    document.getElementById('resultReturn').textContent = profile.expected_return;
+
+    // Allocation Pie Chart
+    const alloc = profile.allocation;
+    const fig = {
+      data: [{
+        type: 'pie',
+        labels: Object.keys(alloc),
+        values: Object.values(alloc),
+        hole: 0.4,
+        textinfo: 'label+percent',
+        marker: {
+          colors: ['#00d4aa','#3498db','#f39c12','#e74c3c','#9b59b6','#1abc9c'],
+        },
+        textfont: {color: '#e0e0e0'},
+      }],
+      layout: {
+        paper_bgcolor: 'transparent',
+        plot_bgcolor: 'transparent',
+        font: {color: '#e0e0e0'},
+        showlegend: true,
+        legend: {orientation: 'v', x: 1, y: 0.5},
+        margin: {t: 0, b: 0, l: 0, r: 80},
+      },
+    };
+    Plotly.newPlot('allocationChart', fig.data, fig.layout, {responsive: true, displayModeBar: false});
+
+    // Recommendations
+    const recsList = document.getElementById('resultRecs');
+    recsList.innerHTML = profile.recommendations.map(r =>
+      `<li class="mb-2"><i class="bi bi-check-circle text-accent me-2"></i>${r}</li>`
+    ).join('');
+
+    // Dynamic Insights
+    const insightsEl = document.getElementById('resultInsights');
+    insightsEl.innerHTML = data.insights.map(i =>
+      `<div class="alert alert-dark py-2 px-3 mb-2 small">${i}</div>`
+    ).join('') || '<p class="text-muted small mb-0">暂无个性化洞察</p>';
+
+    // Scroll to results
+    document.getElementById('advisorResults').scrollIntoView({behavior: 'smooth', block: 'start'});
+  }
+</script>
+{% endblock %}

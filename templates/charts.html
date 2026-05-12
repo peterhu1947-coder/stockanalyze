@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}走势图表 – StockAnalyze{% endblock %}
+
+{% block content %}
+<div class="hero-banner rounded-3 p-4 mb-4">
+  <h1 class="fw-bold mb-1">📈 资产走势图表</h1>
+  <p class="text-muted mb-0">交互式K线图与趋势分析，支持移动均线、成交量，多时间周期切换</p>
+</div>
+
+<!-- Search / Selector -->
+<div class="row g-3 mb-4 align-items-end">
+  <div class="col-md-4">
+    <label class="form-label text-muted small">搜索资产</label>
+    <div class="input-group">
+      <span class="input-group-text bg-dark border-secondary"><i class="bi bi-search text-muted"></i></span>
+      <input type="text" class="form-control" id="tickerSearch"
+             placeholder="输入股票代码，如 AAPL, 000001.SS…" />
+      <button class="btn btn-accent" id="searchBtn">查询</button>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label text-muted small">快速选择</label>
+    <select class="form-select" id="assetSelect">
+      <option value="">-- 选择资产 --</option>
+      {% for asset in assets %}
+      <option value="{{ asset.ticker }}"
+              {% if request.args.get('ticker') == asset.ticker %}selected{% endif %}>
+        {{ asset.ticker }} – {{ asset.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-auto">
+    <label class="form-label text-muted small">图表类型</label>
+    <div class="btn-group d-flex" id="chartTypeGroup">
+      <button class="btn btn-outline-secondary active" data-type="candlestick">
+        <i class="bi bi-bar-chart-steps me-1"></i>K线
+      </button>
+      <button class="btn btn-outline-secondary" data-type="line">
+        <i class="bi bi-graph-up me-1"></i>折线
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Period Selector -->
+<div class="d-flex gap-2 mb-3 flex-wrap" id="periodGroup">
+  {% for p, label in [('5d','5天'), ('1mo','1月'), ('3mo','3月'), ('6mo','6月'), ('1y','1年'), ('2y','2年'), ('5y','5年')] %}
+  <button class="btn btn-sm period-btn {% if p == '1y' %}active{% endif %}" data-period="{{ p }}">{{ label }}</button>
+  {% endfor %}
+</div>
+
+<!-- Chart Container -->
+<div class="card chart-card mb-4">
+  <div class="card-body p-3">
+    <div id="currentAssetInfo" class="mb-3 d-none">
+      <span class="fs-5 fw-bold" id="chartAssetName"></span>
+      <span class="ms-2 fs-4 fw-bold" id="chartAssetPrice"></span>
+      <span class="ms-2 badge" id="chartAssetChange"></span>
+    </div>
+    <div id="mainChart" style="min-height: 520px">
+      <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-5">
+        <i class="bi bi-bar-chart-line fs-1 mb-3 opacity-25"></i>
+        <p class="mb-1">选择资产或输入代码开始查看走势</p>
+        <small>支持美股、A股、港股、ETF、加密货币、大宗商品</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Watchlist -->
+<h5 class="section-header mb-3">
+  <span class="section-dot"></span>热门资产快捷入口
+</h5>
+<div class="row g-2">
+  {% for asset in assets[:16] %}
+  <div class="col-6 col-md-3 col-lg-2">
+    <button class="btn btn-sm w-100 quick-asset-btn btn-outline-secondary text-start"
+            data-ticker="{{ asset.ticker }}">
+      <span class="fw-bold">{{ asset.ticker }}</span>
+      <span class="quick-asset-name">{{ asset.name[:12] }}</span>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentTicker = '{{ request.args.get("ticker", "^GSPC") }}';
+  let currentPeriod = '1y';
+  let currentType = 'candlestick';
+
+  function loadChart(ticker, period, type) {
+    const el = document.getElementById('mainChart');
+    el.innerHTML = '<div class="d-flex align-items-center justify-content-center py-5 text-muted"><div class="spinner-border me-2"></div>加载图表数据…</div>';
+
+    fetch(`/api/chart/${encodeURIComponent(ticker)}?period=${period}&interval=1d&type=${type}`)
+      .then(r => r.json())
+      .then(fig => {
+        if (fig.error) {
+          el.innerHTML = `<div class="text-center text-muted py-5"><i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i>${fig.error}</div>`;
+          return;
+        }
+        el.innerHTML = '';
+        Plotly.newPlot(el, fig.data, fig.layout, {responsive: true, displayModeBar: true, displaylogo: false});
+
+        // Extract latest price info
+        const trace = fig.data[0];
+        if (trace) {
+          const price = trace.close ? trace.close[trace.close.length - 1] : trace.y ? trace.y[trace.y.length - 1] : null;
+          const prev  = trace.close ? trace.close[trace.close.length - 2] : trace.y ? trace.y[trace.y.length - 2] : null;
+          if (price && prev) {
+            const chg = ((price - prev) / prev) * 100;
+            document.getElementById('chartAssetName').textContent = ticker;
+            document.getElementById('chartAssetPrice').textContent = Number(price).toFixed(2);
+            const chgEl = document.getElementById('chartAssetChange');
+            chgEl.textContent = (chg >= 0 ? '▲' : '▼') + Math.abs(chg).toFixed(2) + '%';
+            chgEl.className = 'ms-2 badge ' + (chg >= 0 ? 'bg-success' : 'bg-danger');
+            document.getElementById('currentAssetInfo').classList.remove('d-none');
+          }
+        }
+      })
+      .catch(() => {
+        el.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-wifi-off fs-2 d-block mb-2"></i>数据加载失败，请检查代码或稍后重试</div>';
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Load default chart
+    if (currentTicker) loadChart(currentTicker, currentPeriod, currentType);
+
+    // Period buttons
+    document.querySelectorAll('#periodGroup .period-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#periodGroup .period-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentPeriod = this.dataset.period;
+        loadChart(currentTicker, currentPeriod, currentType);
+      });
+    });
+
+    // Chart type
+    document.querySelectorAll('#chartTypeGroup button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#chartTypeGroup button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentType = this.dataset.type;
+        loadChart(currentTicker, currentPeriod, currentType);
+      });
+    });
+
+    // Asset dropdown
+    document.getElementById('assetSelect').addEventListener('change', function() {
+      if (this.value) {
+        currentTicker = this.value;
+        loadChart(currentTicker, currentPeriod, currentType);
+      }
+    });
+
+    // Search input
+    document.getElementById('searchBtn').addEventListener('click', () => {
+      const val = document.getElementById('tickerSearch').value.trim().toUpperCase();
+      if (val) {
+        currentTicker = val;
+        loadChart(currentTicker, currentPeriod, currentType);
+      }
+    });
+    document.getElementById('tickerSearch').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('searchBtn').click();
+    });
+
+    // Quick asset buttons
+    document.querySelectorAll('.quick-asset-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.quick-asset-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentTicker = this.dataset.ticker;
+        loadChart(currentTicker, currentPeriod, currentType);
+      });
+    });
+
+    // Pre-select dropdown if URL param exists
+    const urlTicker = new URLSearchParams(location.search).get('ticker');
+    if (urlTicker) {
+      const sel = document.getElementById('assetSelect');
+      for (const opt of sel.options) {
+        if (opt.value === urlTicker) { sel.value = urlTicker; break; }
+      }
+    }
+  });
+</script>
+{% endblock %}
