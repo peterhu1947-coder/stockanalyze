@@ -306,8 +306,12 @@ def api_market_overview():
                 t = yf.Ticker(ticker)
                 hist = t.history(period="5d", interval="1d")
                 if len(hist) >= 2:
-                    prev = float(hist["Close"].iloc[-2])
-                    curr = float(hist["Close"].iloc[-1])
+                    prev_val = hist["Close"].iloc[-2]
+                    curr_val = hist["Close"].iloc[-1]
+                    if pd.isna(prev_val) or pd.isna(curr_val):
+                        raise ValueError("NaN price values")
+                    prev = float(prev_val)
+                    curr = float(curr_val)
                     chg = ((curr - prev) / prev) * 100
                     results[category].append({
                         "ticker": ticker,
@@ -399,8 +403,8 @@ def api_chart(ticker):
 
         return jsonify(json.loads(plotly.io.to_json(fig)))
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Failed to retrieve chart data. Please check the ticker symbol or try again later."}), 500
 
 
 @app.route("/api/macro-chart/<path:ticker>")
@@ -433,8 +437,8 @@ def api_macro_chart(ticker):
         fig.update_xaxes(gridcolor="#2a2a4a")
         fig.update_yaxes(gridcolor="#2a2a4a")
         return jsonify(json.loads(plotly.io.to_json(fig)))
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception:
+        return jsonify({"error": "Failed to retrieve indicator data. Please try again later."}), 500
 
 
 @app.route("/api/advisor-analysis", methods=["POST"])
@@ -475,4 +479,4 @@ def api_advisor_analysis():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)

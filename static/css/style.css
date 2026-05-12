@@ -333,7 +333,7 @@ body {
 .risk-option.selected { border-color: var(--accent); background: var(--accent-dim); }
 
 .risk-badge-conservative { background: #26a69a; }
-.risk-badge-moderate     { background: #f39c12; color: #000; }
+.risk-badge-moderate     { background: #f39c12; color: #0d1117; }
 .risk-badge-aggressive   { background: #ef5350; }
 
 .horizon-option {
@@ -421,8 +421,11 @@ body {
   transition: all .15s;
 }
 
-.quick-asset-btn:hover,
-.quick-asset-btn.active {
+.quick-asset-name {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
   border-color: var(--accent) !important;
   color: var(--accent) !important;
   background: var(--accent-dim) !important;

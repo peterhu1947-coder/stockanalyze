@@ -78,7 +78,7 @@
     <button class="btn btn-sm w-100 quick-asset-btn btn-outline-secondary text-start"
             data-ticker="{{ asset.ticker }}">
       <span class="fw-bold">{{ asset.ticker }}</span>
-      <span class="d-block text-muted small" style="font-size:0.7rem;">{{ asset.name[:12] }}</span>
+      <span class="quick-asset-name">{{ asset.name[:12] }}</span>
     </button>
   </div>
   {% endfor %}
